@@ -60,3 +60,11 @@ production-cloud-run/
 1. Tại sao serverless (Lambda) không phải lúc nào cũng tốt cho AI agent?
 2. "Cold start" là gì? Ảnh hưởng thế nào đến UX?
 3. Khi nào nên upgrade từ Railway lên Cloud Run?
+
+## Đáp án câu hỏi thảo luận
+
+1. Serverless như Lambda không phải lúc nào cũng phù hợp cho AI agent vì agent có thể cần request dài, streaming response, warm context/cache, kết nối ổn định tới Redis/vector database, hoặc xử lý tác vụ vượt giới hạn timeout. Ngoài ra cold start và giới hạn runtime/networking có thể làm trải nghiệm chat kém ổn định.
+
+2. Cold start là độ trễ khi platform phải khởi tạo container/function mới trước khi xử lý request đầu tiên. Với AI agent, cold start làm user phải chờ lâu hơn trước khi nhận phản hồi, đặc biệt khó chịu với chat/realtime UX. Cách giảm ảnh hưởng gồm min instances, keep-warm, image nhỏ, startup nhanh và readiness check rõ ràng.
+
+3. Nên upgrade từ Railway lên Cloud Run khi cần yêu cầu production nghiêm túc hơn: autoscaling tốt hơn, IAM/VPC tích hợp GCP, kiểm soát region/networking, observability, CI/CD chuẩn, traffic splitting/rollback, service account, và khả năng chịu tải/chi phí dự đoán hơn. Railway phù hợp demo/MVP/học nhanh; Cloud Run phù hợp production có yêu cầu vận hành rõ.

@@ -92,6 +92,8 @@ curl -X POST "http://localhost:8000/ask?question=hello"
 
 **Quan sát:** Nó chạy! Nhưng có production-ready không?
 
+**Đáp án:** Chưa production-ready. App local có thể trả lời request, nhưng vẫn thiếu các yếu tố production như config từ environment variables, không hardcode secrets, health/readiness checks, structured logging, graceful shutdown, Docker image, authentication, rate limiting, cost guard và stateless state.
+
 ###  Exercise 1.3: So sánh với advanced version
 
 ```bash
@@ -109,6 +111,17 @@ python app.py
 | Health check |  |  | ... |
 | Logging | print() | JSON | ... |
 | Shutdown | Đột ngột | Graceful | ... |
+
+**Đáp án tham khảo:**
+
+| Feature | Basic | Advanced | Tại sao quan trọng? |
+|---------|-------|----------|---------------------|
+| Config | Hardcode trong code | Env vars/config object | Dễ đổi giữa local/staging/production mà không sửa code |
+| Secrets | Có thể nằm trực tiếp trong source | Đọc từ env hoặc `.env` template | Tránh lộ API key khi push Git |
+| Port | Cố định `8000` | Đọc từ `PORT` | Cloud platform thường cấp port động |
+| Health check | Không có | `GET /health` | Platform/load balancer biết service còn sống |
+| Logging | `print()`/log thường | Structured JSON logging | Dễ search, parse, alert trên cloud |
+| Shutdown | Dừng đột ngột | Graceful shutdown | Giảm mất request/data khi container bị stop |
 
 ###  Checkpoint 1
 
@@ -146,6 +159,13 @@ cd ../../02-docker/develop
 3. Tại sao COPY requirements.txt trước?
 4. CMD vs ENTRYPOINT khác nhau thế nào?
 
+**Đáp án:**
+
+1. Base image là image nền chứa OS/runtime để xây image app, ví dụ `python:3.11-slim`.
+2. Working directory là thư mục mặc định để chạy các lệnh tiếp theo trong image/container, thường là `/app`.
+3. Copy `requirements.txt` trước để Docker cache layer cài dependencies. Khi chỉ sửa source code, không cần chạy lại `pip install`.
+4. `CMD` là lệnh mặc định, dễ override khi chạy container. `ENTRYPOINT` là executable chính, cố định hơn; thường dùng khi container luôn chạy cùng một binary/script.
+
 ###  Exercise 2.2: Build và run
 
 ```bash
@@ -166,6 +186,8 @@ curl http://localhost:8000/ask -X POST \
 docker images my-agent:develop
 ```
 
+**Đáp án:** Cần lấy số liệu thực tế bằng `docker images my-agent:develop`. Bản single-stage thường lớn hơn vì chứa cả runtime, dependencies, cache và có thể cả build tools. Tiêu chí final project yêu cầu image nhỏ hơn 500 MB.
+
 ###  Exercise 2.3: Multi-stage build
 
 ```bash
@@ -176,6 +198,12 @@ cd ../production
 - Stage 1 làm gì?
 - Stage 2 làm gì?
 - Tại sao image nhỏ hơn?
+
+**Đáp án:**
+
+- Stage 1 là builder: cài dependencies/build tools, tạo môi trường chạy app hoặc virtualenv.
+- Stage 2 là runtime: bắt đầu từ image slim sạch, copy chỉ artifacts cần chạy từ builder và app source.
+- Image nhỏ hơn vì không giữ build tools, cache, temporary files và các layer chỉ phục vụ build.
 
 Build và so sánh:
 ```bash
@@ -192,6 +220,12 @@ docker compose up
 ```
 
 Services nào được start? Chúng communicate thế nào?
+
+**Đáp án:** Stack production thường start các service như `nginx`, `agent` và `redis`. Client gọi Nginx qua port public; Nginx proxy request tới agent; agent dùng Redis để lưu state như conversation history, rate limit và budget.
+
+```text
+Client -> Nginx -> Agent replica(s) -> Redis
+```
 
 Test:
 ```bash
@@ -299,6 +333,8 @@ cd ../render
 
 **Nhiệm vụ:** So sánh `render.yaml` với `railway.toml`. Khác nhau gì?
 
+**Đáp án:** `railway.toml` chủ yếu cấu hình cách Railway build/deploy service, start command, healthcheck và restart policy. `render.yaml` là blueprint hạ tầng rõ hơn, có thể khai báo web service, Redis service, env vars và health path trong cùng YAML. Railway phù hợp deploy nhanh/MVP; Render blueprint explicit hơn khi muốn mô tả infrastructure as code trong repo.
+
 ###  Exercise 3.3: (Optional) GCP Cloud Run (15 phút)
 
 ```bash
@@ -339,6 +375,12 @@ cd ../../04-api-gateway/develop
 - API key được check ở đâu?
 - Điều gì xảy ra nếu sai key?
 - Làm sao rotate key?
+
+**Đáp án:**
+
+- API key được đọc từ header `X-API-Key` và so sánh với biến môi trường/config `AGENT_API_KEY`.
+- Nếu thiếu hoặc sai key, API trả `401 Unauthorized`.
+- Rotate key bằng cách tạo key mới, cập nhật secret trên môi trường deploy, redeploy/restart app, thông báo client dùng key mới và revoke key cũ.
 
 Test:
 ```bash
@@ -389,6 +431,12 @@ curl http://localhost:8000/ask -X POST \
 - Limit là bao nhiêu requests/minute?
 - Làm sao bypass limit cho admin?
 
+**Đáp án:**
+
+- Pattern production nên dùng Redis sliding window hoặc token bucket. Final project dùng Redis sliding window bằng sorted set.
+- Theo yêu cầu final project, limit là `10 req/min/user`.
+- Bypass/nâng quota cho admin bằng cách map API key/JWT claim sang role `admin`, rồi trong rate limiter dùng limit cao hơn hoặc bỏ qua check cho role đó. Bản nộp không bật bypass vì yêu cầu lab là per-user limit.
+
 Test:
 ```bash
 # Gọi liên tục 20 lần
@@ -420,6 +468,8 @@ def check_budget(user_id: str, estimated_cost: float) -> bool:
     # TODO: Implement
     pass
 ```
+
+**Đáp án triển khai:** Logic đúng là lưu tổng chi phí theo key tháng trong Redis, ví dụ `budget:{user_id}:{YYYY-MM}`. Nếu `current + estimated_cost` vượt 10 USD thì từ chối request; nếu chưa vượt thì tăng tổng bằng `incrbyfloat` và đặt TTL khoảng 32 ngày.
 
 <details>
 <summary> Solution</summary>
@@ -489,6 +539,24 @@ def ready():
     pass
 ```
 
+**Đáp án:**
+
+```python
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.get("/ready")
+def ready():
+    try:
+        redis_client.ping()
+        return {"ready": True, "redis": "ok"}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc))
+```
+
+`/health` nên kiểm tra process còn sống. `/ready` nên kiểm tra dependency như Redis/database.
+
 <details>
 <summary> Solution</summary>
 
@@ -534,6 +602,8 @@ def shutdown_handler(signum, frame):
 signal.signal(signal.SIGTERM, shutdown_handler)
 ```
 
+**Đáp án:** Với FastAPI/Uvicorn, nên kết hợp signal handler để log tín hiệu shutdown và lifespan shutdown event để đóng connection. Uvicorn có `timeout_graceful_shutdown` để cho request đang xử lý có thời gian hoàn thành trước khi process thoát.
+
 Test:
 ```bash
 python app.py &
@@ -549,6 +619,8 @@ kill -TERM $PID
 
 # Quan sát: Request có hoàn thành không?
 ```
+
+**Đáp án:** Nếu graceful shutdown hoạt động đúng, process sẽ nhận SIGTERM, dừng nhận request mới, cố gắng hoàn thành request đang chạy trong grace period, đóng connection và ghi log shutdown. Nếu không graceful, request có thể bị cắt ngang.
 
 ###  Exercise 5.3: Stateless design
 
@@ -579,6 +651,8 @@ def ask(user_id: str, question: str):
 ```
 
 Tại sao? Vì khi scale ra nhiều instances, mỗi instance có memory riêng.
+
+**Giải thích thêm:** Nếu lưu conversation trong memory, user có thể gửi request đầu vào Agent 1 và request sau vào Agent 2, khiến Agent 2 không có history. Khi lưu state trong Redis, mọi agent replica đều đọc/ghi cùng nguồn state nên scale ngang an toàn.
 
 ###  Exercise 5.4: Load balancing
 
@@ -616,6 +690,8 @@ Script này:
 1. Gọi API để tạo conversation
 2. Kill random instance
 3. Gọi tiếp — conversation vẫn còn không?
+
+**Đáp án:** Nếu state nằm trong Redis thì conversation vẫn còn sau khi kill một instance. Nếu state nằm trong memory của instance bị kill thì conversation sẽ mất.
 
 ###  Checkpoint 5
 

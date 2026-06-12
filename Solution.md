@@ -265,3 +265,5 @@ Deployment result:
 - Production readiness checker: `20/20` checks passed
 
 See `SUBMISSION_REPORT.md` for the final deployment and test evidence.
+
+For the full cross-check of every repository requirement source, see `REQUIREMENTS_COMPLETION_MATRIX.md`.

@@ -19,7 +19,7 @@ develop/
 
 ### Chạy thử
 ```bash
-cd basic
+cd develop
 pip install -r requirements.txt
 AGENT_API_KEY=my-secret-key python app.py
 
@@ -50,7 +50,7 @@ production/
 
 ### Chạy thử
 ```bash
-cd advanced
+cd production
 pip install -r requirements.txt
 python app.py
 
@@ -89,3 +89,11 @@ Request
 1. Khi nào nên dùng API Key vs JWT vs OAuth2?
 2. Rate limit nên đặt bao nhiêu request/phút cho một AI agent?
 3. Nếu API key bị lộ, bạn phát hiện và xử lý như thế nào?
+
+## Đáp án câu hỏi thảo luận
+
+1. API Key phù hợp cho service-to-service, demo, internal tools hoặc client ít phức tạp, nơi chỉ cần xác thực một secret cố định. JWT phù hợp khi cần danh tính user, role/claim, token hết hạn và auth flow nhẹ cho app riêng. OAuth2 phù hợp cho hệ thống nhiều người dùng/third-party integrations, delegated access, SSO, scopes và quản trị quyền chuẩn hơn.
+
+2. Rate limit phụ thuộc chi phí model, latency và loại user. Với lab này đặt `10 req/min/user` để dễ quan sát và bảo vệ chi phí. Với production thật có thể tách tier: free 5-10 req/min, authenticated paid 30-120 req/min, admin/internal cao hơn; đồng thời giới hạn thêm theo ngày/tháng và theo token/cost chứ không chỉ request count.
+
+3. Nếu API key bị lộ: revoke/rotate key ngay, cập nhật secret trong Railway/Render/secret manager, redeploy service, kiểm tra logs để tìm request bất thường, reset quota/budget nếu cần, thông báo người liên quan, và quét Git history/build logs để xóa secret. Sau đó thêm guardrail: không commit `.env`, secret scanning, short-lived tokens, rate limit và cost guard.

@@ -1,53 +1,59 @@
-# Day 12 Submission Report
+# Báo Cáo Nộp Bài Day 12
 
-Project: Day 12 - Deployment: Dua Agent Len Cloud  
-Public API URL: `https://agent-api-production-3d7b.up.railway.app`  
-Deployment platform: Railway  
-Runtime: Docker image based on `python:3.11-slim`  
-Storage/backing service: Railway Redis  
-API key: provided separately. It is redacted as `<AGENT_API_KEY>` in this report.
+Sinh viên: Đỗ Trung Đức  
+Mã sinh viên: 2A202600918  
+Ngày nộp: 12/06/2026  
 
-## Deliverables
+Tên bài: Day 12 - Deployment: Đưa Agent Lên Cloud  
+URL API public: `https://agent-api-production-3d7b.up.railway.app`  
+Nền tảng triển khai: Railway  
+Runtime: Docker image dựa trên `python:3.11-slim`  
+Backing service: Railway Redis  
+API key: được cung cấp riêng, trong báo cáo được ẩn thành `<AGENT_API_KEY>`.
 
-- `Solution.md`: answers for Code Lab Parts 1-5.
-- `06-lab-complete/`: final production-ready agent.
-- `06-lab-complete/Dockerfile`: multi-stage build, non-root runtime user.
-- `06-lab-complete/docker-compose.yml`: local stack with Nginx, agent replicas, and Redis.
-- `06-lab-complete/railway.toml`: Railway deployment config.
-- `06-lab-complete/render.yaml`: Render deployment config.
+## 1. Các File Nộp Bài
+
+- `Solution.md`: trả lời các bài Code Lab từ Part 1 đến Part 5.
+- `REQUIREMENTS_COMPLETION_MATRIX.md`: ma trận đối chiếu toàn bộ yêu cầu/câu hỏi/checklist trong repo với bằng chứng hoàn thành.
+- `06-lab-complete/`: project final production-ready agent.
+- `06-lab-complete/Dockerfile`: Dockerfile multi-stage, chạy bằng non-root user.
+- `06-lab-complete/docker-compose.yml`: stack local gồm Nginx, nhiều agent replicas và Redis.
+- `06-lab-complete/railway.toml`: cấu hình deploy Railway.
+- `06-lab-complete/render.yaml`: cấu hình deploy Render.
 - Public Railway URL: `https://agent-api-production-3d7b.up.railway.app`.
 
-## Implemented Requirements
+## 2. Các Yêu Cầu Đã Hoàn Thành
 
-Functional:
+### Functional
 
-- Agent answers questions through REST API: `POST /ask`.
-- Conversation history is stored in Redis by `user_id`.
-- Input validation is handled by Pydantic/FastAPI.
+- Agent trả lời câu hỏi qua REST API: `POST /ask`.
+- Conversation history được lưu trong Redis theo `user_id`.
+- Input validation được xử lý bằng Pydantic/FastAPI.
+- Có response lỗi rõ ràng cho thiếu API key, vượt rate limit, Redis chưa sẵn sàng và request body không hợp lệ.
 
-Non-functional:
+### Non-functional
 
-- Dockerized with multi-stage build.
-- Config loaded from environment variables.
-- API key authentication through `X-API-Key`.
-- Redis-backed rate limiting: 10 requests/minute/user.
-- Redis-backed monthly cost guard: 10 USD/month/user.
+- Dockerized bằng multi-stage build.
+- Config được đọc từ environment variables.
+- API key authentication qua header `X-API-Key`.
+- Rate limiting dùng Redis: 10 requests/phút/user.
+- Cost guard dùng Redis: 10 USD/tháng/user.
 - Liveness endpoint: `GET /health`.
 - Readiness endpoint: `GET /ready`.
-- Graceful shutdown handling with SIGTERM/SIGINT.
-- Stateless design: history, budget, and rate data are stored in Redis.
+- Graceful shutdown với SIGTERM/SIGINT.
+- Stateless design: history, budget và rate data đều nằm trong Redis.
 - Structured JSON logging.
-- Railway deployment with public URL.
+- Đã deploy lên Railway và có public URL hoạt động.
 
-## Production Readiness Check
+## 3. Kết Quả Production Readiness Check
 
-Command:
+Lệnh chạy:
 
 ```bash
 python 06-lab-complete/check_production_ready.py
 ```
 
-Result:
+Kết quả:
 
 ```text
 Production Readiness Check - Day 12 Lab
@@ -83,46 +89,50 @@ Docker:
 Result: 20/20 checks passed (100%)
 ```
 
-## Railway Deployment Notes
+## 4. Ghi Chú Triển Khai Railway
 
-The application was deployed to the Railway service `agent-api`.
+Ứng dụng được deploy vào Railway service `agent-api`.
 
-Important services:
+Các service quan trọng:
 
-- `agent-api`: FastAPI production agent
-- `Redis`: Railway Redis database service
+- `agent-api`: FastAPI production agent.
+- `Redis`: Railway Redis database service.
 
-Redis issue encountered during deployment:
+Trong quá trình deploy có gặp lỗi Redis:
 
-- Initial `/ready` call returned `Redis not ready: Timeout connecting to server`.
-- Root cause: Redis service deployment was stopped/exited.
-- Fix applied: redeployed Redis service with:
+- Ban đầu gọi `/ready` trả về: `Redis not ready: Timeout connecting to server`.
+- Nguyên nhân: Redis service trên Railway đã bị dừng/exited.
+- Cách xử lý: redeploy Redis service.
+
+Lệnh đã dùng:
 
 ```bash
 railway redeploy --service Redis --yes
 ```
 
-After Redis redeploy, readiness passed:
+Sau khi redeploy Redis, readiness check đã thành công:
 
 ```bash
 curl https://agent-api-production-3d7b.up.railway.app/ready
 ```
 
+Kết quả:
+
 ```json
 {"ready":true,"redis":"ok"}
 ```
 
-## Public Endpoint Test Evidence
+## 5. Bằng Chứng Test Public Endpoint
 
-### Health Check
+### 5.1. Health Check
 
-Command:
+Lệnh chạy:
 
 ```bash
 curl -v --max-time 10 https://agent-api-production-3d7b.up.railway.app/health
 ```
 
-Observed result:
+Kết quả HTTP:
 
 ```http
 HTTP/1.1 200 OK
@@ -141,23 +151,23 @@ Response:
 }
 ```
 
-### Readiness Check
+### 5.2. Readiness Check
 
-Command:
+Lệnh chạy:
 
 ```bash
 curl https://agent-api-production-3d7b.up.railway.app/ready
 ```
 
-Final observed result:
+Kết quả cuối cùng:
 
 ```json
 {"ready":true,"redis":"ok"}
 ```
 
-### Ask Endpoint With Authentication
+### 5.3. Gọi `/ask` Với API Key Hợp Lệ
 
-Command:
+Lệnh chạy:
 
 ```bash
 curl -X POST https://agent-api-production-3d7b.up.railway.app/ask \
@@ -166,7 +176,7 @@ curl -X POST https://agent-api-production-3d7b.up.railway.app/ask \
   -d '{"user_id":"student-1","question":"Hello from Railway"}'
 ```
 
-Observed result:
+Kết quả:
 
 ```json
 {
@@ -180,9 +190,9 @@ Observed result:
 }
 ```
 
-### Authentication Failure
+### 5.4. Test Thiếu API Key
 
-Command:
+Lệnh chạy:
 
 ```bash
 curl -X POST https://agent-api-production-3d7b.up.railway.app/ask \
@@ -190,15 +200,17 @@ curl -X POST https://agent-api-production-3d7b.up.railway.app/ask \
   -d '{"user_id":"student-1","question":"Hello"}'
 ```
 
-Observed result:
+Kết quả:
 
 ```json
 {"detail":"Invalid or missing API key. Include header: X-API-Key."}
 ```
 
-### Authentication Success
+Kết luận: API chặn request không có key, đúng yêu cầu authentication.
 
-Command:
+### 5.5. Test Có API Key Hợp Lệ
+
+Lệnh chạy:
 
 ```bash
 curl -X POST https://agent-api-production-3d7b.up.railway.app/ask \
@@ -207,7 +219,7 @@ curl -X POST https://agent-api-production-3d7b.up.railway.app/ask \
   -d '{"user_id":"student-1","question":"Hello"}'
 ```
 
-Observed result:
+Kết quả:
 
 ```json
 {
@@ -221,9 +233,11 @@ Observed result:
 }
 ```
 
-### Rate Limit Test
+Kết luận: API nhận key hợp lệ và trả lời thành công.
 
-Command:
+### 5.6. Test Rate Limit
+
+Lệnh chạy:
 
 ```bash
 for i in {1..15}; do
@@ -234,26 +248,32 @@ for i in {1..15}; do
 done
 ```
 
-Observed result:
+Kết quả quan sát:
 
-- Requests 1-10 returned `HTTP 200`.
-- Requests 11-15 returned `HTTP 429`.
+- Request 1-10 trả về `HTTP 200`.
+- Request 11-15 trả về `HTTP 429`.
 
-Representative rate-limit response:
+Response đại diện khi vượt rate limit:
 
 ```json
 {"detail":"Rate limit exceeded: 10 req/min"}
 ```
 
-## Final Status
+Kết luận: rate limiting hoạt động đúng yêu cầu 10 requests/phút/user.
 
-The repository satisfies the main Day 12 requirements:
+## 6. Trạng Thái Hoàn Thành
 
-- Code lab answers are documented in `Solution.md`.
-- Final project is productionized in `06-lab-complete`.
-- Public Railway deployment is available.
-- Health, readiness, authentication, ask endpoint, Redis integration, and rate limiting were tested successfully.
+Repo đã đáp ứng các yêu cầu chính của Day 12:
 
-Remaining operational note:
+- Đáp án Code Lab được ghi trong `Solution.md`.
+- Tất cả câu hỏi thảo luận trong các README section đã được trả lời trực tiếp trong từng README.
+- Toàn bộ yêu cầu cấp repo được đối chiếu trong `REQUIREMENTS_COMPLETION_MATRIX.md`.
+- Final project đã được productionize trong `06-lab-complete`.
+- Đã deploy lên Railway và có public URL hoạt động.
+- Đã test thành công health, readiness, authentication, ask endpoint, Redis integration và rate limiting.
 
-- The current implementation uses an offline mock LLM adapter to avoid requiring an OpenAI API key, as allowed by the lab. To use a real LLM, replace `06-lab-complete/app/mock_llm.py` with a real provider adapter and set `OPENAI_API_KEY`.
+## 7. Ghi Chú Vận Hành
+
+- Bản hiện tại dùng mock LLM offline để không cần OpenAI API key, đúng với yêu cầu lab cho phép dùng mock LLM.
+- Nếu muốn dùng LLM thật, cần thay `06-lab-complete/app/mock_llm.py` bằng adapter gọi provider thật và set `OPENAI_API_KEY`.
+- API key thật không được ghi trực tiếp trong báo cáo để tránh lộ secret. Khi chấm bài, API key có thể được cung cấp riêng cho giảng viên.
