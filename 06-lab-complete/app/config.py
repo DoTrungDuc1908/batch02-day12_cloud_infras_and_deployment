@@ -1,4 +1,4 @@
-"""Production config — 12-Factor: tất cả từ environment variables."""
+"""Production config: all runtime settings come from environment variables."""
 import os
 import logging
 from dataclasses import dataclass, field
@@ -29,16 +29,25 @@ class Settings:
 
     # Rate limiting
     rate_limit_per_minute: int = field(
-        default_factory=lambda: int(os.getenv("RATE_LIMIT_PER_MINUTE", "20"))
+        default_factory=lambda: int(os.getenv("RATE_LIMIT_PER_MINUTE", "10"))
     )
 
     # Budget
-    daily_budget_usd: float = field(
-        default_factory=lambda: float(os.getenv("DAILY_BUDGET_USD", "5.0"))
+    monthly_budget_usd: float = field(
+        default_factory=lambda: float(os.getenv("MONTHLY_BUDGET_USD", "10.0"))
+    )
+    estimated_input_cost_per_1k: float = field(
+        default_factory=lambda: float(os.getenv("INPUT_COST_PER_1K", "0.00015"))
+    )
+    estimated_output_cost_per_1k: float = field(
+        default_factory=lambda: float(os.getenv("OUTPUT_COST_PER_1K", "0.0006"))
     )
 
+    # Conversation history
+    history_limit: int = field(default_factory=lambda: int(os.getenv("HISTORY_LIMIT", "12")))
+
     # Storage
-    redis_url: str = field(default_factory=lambda: os.getenv("REDIS_URL", ""))
+    redis_url: str = field(default_factory=lambda: os.getenv("REDIS_URL", "redis://localhost:6379/0"))
 
     def validate(self):
         logger = logging.getLogger(__name__)
@@ -48,7 +57,7 @@ class Settings:
             if self.jwt_secret == "dev-jwt-secret":
                 raise ValueError("JWT_SECRET must be set in production!")
         if not self.openai_api_key:
-            logger.warning("OPENAI_API_KEY not set — using mock LLM")
+            logger.warning("OPENAI_API_KEY not set; using mock LLM")
         return self
 
 
